@@ -3,6 +3,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 from datetime import datetime
+from pathlib import Path
 import pickle
 import matplotlib.pyplot as plt
 import base64
@@ -24,72 +25,77 @@ st.markdown(
 
 
 # Background Image
-# -----------------------------
+## Determine the base directory safely
+try:
+    BASE_DIR = Path(__file__).parent
+except NameError:
+    # Fallback if __file__ doesn't exist (e.g., in notebooks)
+    BASE_DIR = Path(os.getcwd())
+
+# Background Image Function
 def set_bg(image_file):
-    with open(image_file, "rb") as f:
-        encoded = base64.b64encode(f.read()).decode()
-    st.markdown(
-        f"""
-        <style>
-        .stApp {{
-            background-image: url("data:image/jpg;base64,{encoded}");
-            background-size: cover;
-            background-position: center;
-            background-repeat: no-repeat;
-        }}
+    # Construct the full path to the image
+    image_path = BASE_DIR / image_file
+    
+    if image_path.exists():
+        with open(image_path, "rb") as f:
+            encoded = base64.b64encode(f.read()).decode()
+        
+        st.markdown(
+            f"""
+            <style>
+            .stApp {{
+                background-image: url("data:image/jpg;base64,{encoded}");
+                background-size: cover;
+                background-position: center;
+                background-repeat: no-repeat;
+                background-attachment: fixed; /* Keeps image from scrolling */
+            }}
 
-        /* Make all labels black */
-        label, .stMarkdown, .stTextInput label, .stNumberInput label,
-        .stSelectbox label, .stSlider label {{
-            color: black !important;
-            font-weight: 600;
-        }}
+            /* Ensure text is readable over the background */
+            label, .stMarkdown, .stTextInput label, .stNumberInput label,
+            .stSelectbox label, .stSlider label {{
+                color: black !important;
+                font-weight: 600;
+                background-color: rgba(255, 255, 255, 0.4); /* subtle white glow behind text */
+                padding: 2px;
+                border-radius: 4px;
+            }}
+            </style>
+            """,
+            unsafe_allow_html=True
+        )
+    else:
+        st.warning(f"Background image not found at: {image_path}")
 
-        /* Push buttons to top-left */
-        .top-left-buttons {{
-            position: fixed;
-            top: 10px;
-            left: 10px;
-            z-index: 1000;
-        }}
-
-        .top-left-buttons button {{
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            padding: 8px 16px;
-            margin-right: 5px;
-            cursor: pointer;
-            font-size: 14px;
-            border-radius: 5px;
-        }}
-
-        .top-left-buttons button:hover {{
-            background-color: #45a049;
-        }}
-        </style>
-        """,
-        unsafe_allow_html=True
-    )
-
+# Call the function with your image
 set_bg("back.jfif")
 
-# Load trained model and scaler
-with open('finalized_model.sav', 'rb') as f:
+# 1. Define the folder where your files actually live
+try:
+    BASE_DIR = Path(__file__).parent  # double underscores
+except NameError:
+    # Fallback if __file__ doesn't exist (like in notebooks)
+    BASE_DIR = Path(os.getcwd())
+
+# 2. Load trained model using the full path
+with open(BASE_DIR / "finalized_model.sav", "rb") as f:
     loaded_model = pickle.load(f)
 
-with open('scaler.sav', 'rb') as f:
+# 3. Load scaler using the full path
+with open(BASE_DIR / "scaler.sav", "rb") as f:
     sc = pickle.load(f)
 
-with open('model_columns.pkl', 'rb') as f:
+# 4. Load model columns using the full path
+with open(BASE_DIR / "model_columns.pkl", "rb") as f:
     X_columns = pickle.load(f)
 
-# Load dataset to get unique values for dropdowns
-food = pd.read_csv("C:/Users/Admin/Desktop/machine learning/food/Export.csv", on_bad_lines="skip")
-
+# 5. Load dataset using the full path
+food = pd.read_csv(BASE_DIR / "Export.csv", on_bad_lines="skip")
 
 # Convert date to datetime for processing
 food['date'] = pd.to_datetime(food['date'], errors='coerce')
+
 
 # Extract dropdown options
 region_options = sorted(food['admin1'].dropna().unique())      # admin1 as Region
@@ -197,3 +203,4 @@ if st.sidebar.button("Predict Price"):
         st.pyplot(fig)
     else:
         st.warning("No historical data available for trend chart.")
+
